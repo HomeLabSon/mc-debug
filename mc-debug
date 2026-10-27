@@ -23,6 +23,8 @@ mc-debug <command>
   box <user@domain>         message count per folder
   find <user@domain> <text> find mails by subject text in all folders
   trace <text> [period]     search postfix/rspamd/dovecot logs (period e.g. 30m, 3h, 2d; default 3h)
+  errors [period] [all]     postfix/dovecot problems grouped by message, scanner noise hidden (default 24h)
+  stats [period]            short mail statistics: counts, rspamd actions, top domains (default 24h)
 USAGE
 }
 
@@ -49,5 +51,30 @@ case "${1:-}" in
     [ -n "${2:-}" ] || die "usage: mc-debug trace <text> [period]"
     docker compose logs --since "${3:-3h}" postfix-mailcow rspamd-mailcow dovecot-mailcow \
       | grep -F -- "$2" | cut -c1-300 ;;
+  errors)
+    noise='SSL_accept\(\) failed|TLS library problem|TLS SNI from|non-SMTP command|does not resolve to address'
+    docker compose logs --no-color --since "${2:-24h}" postfix-mailcow dovecot-mailcow 2>/dev/null \
+      | grep -iE ' (warning|error|fatal|panic):|status=(deferred|bounced)|NOQUEUE: reject' \
+      | sed -E 's/^[a-z0-9-]+ +\| //; s/^[A-Z][a-z]{2} +[0-9]+ [0-9:]+ [^ ]+ //; s/[0-9A-F]{10,12}: //; s/\[[0-9]+\]/[]/; s/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/IP/g; s/<[^>]*>/<x>/g; s/delays?=[^ ]*//g; s/sasl_username=[^ ,]*/sasl_username=<x>/' \
+      | { if [ "${3:-}" = all ]; then cat; else grep -vE "$noise"; fi; } \
+      | cut -c1-160 | sort | uniq -c | sort -rn | head -20
+    [ "${3:-}" = all ] || echo "(hidden: TLS handshake/scanner noise; 'mc-debug errors ${2:-24h} all' shows everything)" ;;
+  stats)
+    p="${2:-24h}"; t=$(mktemp); trap 'rm -f "$t"' EXIT
+    docker compose logs --no-color --since "$p" postfix-mailcow dovecot-mailcow rspamd-mailcow >"$t" 2>/dev/null
+    echo "== mail statistics, last $p =="
+    printf 'received (queued) : %s\n' "$(grep -c 'postfix/qmgr.*: from=<.*size=' "$t")"
+    printf 'delivered local   : %s\n' "$(grep -c 'postfix/lmtp.*status=sent' "$t")"
+    printf 'sent outbound     : %s\n' "$(grep -c 'postfix/smtp\[.*status=sent' "$t")"
+    printf 'deferred          : %s\n' "$(grep -c 'status=deferred' "$t")"
+    printf 'bounced           : %s\n' "$(grep -c 'status=bounced' "$t")"
+    printf 'rejected          : %s\n' "$(grep -c 'NOQUEUE: reject' "$t")"
+    printf 'IMAP/POP logins   : %s\n' "$(grep -c 'Login: user=<' "$t")"
+    echo "-- rspamd actions"
+    grep -o 'default: [FT] ([a-z ]*)' "$t" | sed 's/default: [FT] //' | sort | uniq -c | sort -rn
+    echo "-- top sender domains (received)"
+    grep 'postfix/qmgr.*: from=<' "$t" | grep -o 'from=<[^>]*@[^>]*>' | sed 's/.*@//; s/>//' | sort | uniq -c | sort -rn | head -5
+    echo "-- top recipient domains (sent outbound)"
+    grep 'postfix/smtp\[.*status=sent' "$t" | grep -o ' to=<[^>]*@[^>]*>' | sed 's/.*@//; s/>//' | sort | uniq -c | sort -rn | head -5 ;;
   *) usage ;;
 esac

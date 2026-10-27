@@ -25,6 +25,8 @@ The mailcow directory defaults to `/opt/mailcow-dockerized`. Override with `MAIL
     mc-debug box <user@domain>          message count per folder
     mc-debug find <user@domain> <text>  find mails by subject text in all folders
     mc-debug trace <text> [period]      search postfix/rspamd/dovecot logs (30m, 3h, 2d; default 3h)
+    mc-debug errors [period] [all]      postfix/dovecot problems grouped by message, scanner noise hidden (default 24h)
+    mc-debug stats [period]             short mail statistics: counts, rspamd actions, top domains (default 24h)
 
 ## Example: sync jobs stop running
 
