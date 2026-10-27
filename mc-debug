@@ -1,0 +1,53 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# mc-debug - read-only troubleshooting helper for mailcow-dockerized
+# Needs: root or docker access on the mailcow host, Docker Compose v2.
+# Parsing of imapsync reports tested with imapsync 2.178 (bundled with mailcow).
+set -u
+MAILCOW_DIR="${MAILCOW_DIR:-/opt/mailcow-dockerized}"
+
+die() { echo "mc-debug: $*" >&2; exit 1; }
+[ -f "$MAILCOW_DIR/docker-compose.yml" ] || die "no mailcow found in $MAILCOW_DIR (set MAILCOW_DIR)"
+cd "$MAILCOW_DIR" || exit 1
+docker compose version >/dev/null 2>&1 || die "Docker Compose v2 not found"
+
+sql()  { docker compose exec -T mysql-mailcow sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" mailcow "$@"' _ "$@"; }
+dove() { docker compose exec -T dovecot-mailcow doveadm "$@"; }
+
+usage() {
+  cat <<USAGE
+mc-debug <command>
+  sync                      status of all IMAP sync jobs (stuck job? see min_ago/running)
+  syncreport <job-id>       short report of the last run of one sync job
+  runner                    is imapsync running right now? is the lock present?
+  box <user@domain>         message count per folder
+  find <user@domain> <text> find mails by subject text in all folders
+  trace <text> [period]     search postfix/rspamd/dovecot logs (period e.g. 30m, 3h, 2d; default 3h)
+USAGE
+}
+
+case "${1:-}" in
+  sync)
+    sql -e "select id, user2 as target, user1 as source, last_run,
+            timestampdiff(minute, last_run, now()) as min_ago,
+            is_running as running, exit_status
+            from imapsync order by last_run" ;;
+  syncreport)
+    [[ "${2:-}" =~ ^[0-9]+$ ]] || die "usage: mc-debug syncreport <job-id>"
+    sql -N -B -e "select returned_text from imapsync where id=$2" | sed 's/\\n/\n/g' \
+      | grep -E 'Transfer (started|ended) on|Host1: folder .* has [0-9]+ messages in total|Messages (transferred|deleted on host1)|Detected' ;;
+  runner)
+    docker compose exec -T dovecot-mailcow sh -c \
+      'date; ps -eo pid,etime,time,args | grep "[i]mapsync --tmpdir" | cut -c1-110; ls -l /tmp/imapsync_busy.lock 2>&1' ;;
+  box)
+    [ -n "${2:-}" ] || die "usage: mc-debug box <user@domain>"
+    dove mailbox status -u "$2" messages '*' ;;
+  find)
+    [ -n "${3:-}" ] || die "usage: mc-debug find <user@domain> <subject text>"
+    dove fetch -u "$2" "mailbox date.saved" all subject "$3" ;;
+  trace)
+    [ -n "${2:-}" ] || die "usage: mc-debug trace <text> [period]"
+    docker compose logs --since "${3:-3h}" postfix-mailcow rspamd-mailcow dovecot-mailcow \
+      | grep -F -- "$2" | cut -c1-300 ;;
+  *) usage ;;
+esac
