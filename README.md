@@ -1,4 +1,5 @@
 # mc-debug
+[Deutsch](README.de.md) | **English**
 
 Read-only troubleshooting helper for [mailcow-dockerized](https://github.com/mailcow/mailcow-dockerized).
 It wraps the container, database and `doveadm` calls you need when "mail is missing" or an IMAP sync looks stuck,
@@ -43,6 +44,10 @@ compared, copied back and deleted again on every run.
 - Table and column names (`imapsync`, `returned_text`, ...) come from mailcow's database and may change between versions.
 - `find` matches the decoded subject via `doveadm`; `trace` only finds what the services actually log
   (queue IDs, addresses, message IDs), usually not subjects.
+
+## AI assistance
+
+This tool was created with the help of an AI assistant (Claude by Anthropic) and is used by the author on a live mailcow installation.
 
 ## License
 
