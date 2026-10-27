@@ -47,7 +47,7 @@ compared, copied back and deleted again on every run.
 
 ## AI assistance
 
-This tool was created with the help of an AI assistant (Claude by Anthropic) and is used by the author on a live mailcow installation.
+This tool was created with the help of AI assistants and is used by the author on a live mailcow installation.
 
 ## License
 

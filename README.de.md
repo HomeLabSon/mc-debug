@@ -48,7 +48,7 @@ Lauf verglichen, zurückkopiert und erneut gelöscht.
 
 ## Hinweis zur KI-Unterstützung
 
-Dieses Tool wurde mit Unterstützung eines KI-Assistenten (Claude von Anthropic) erstellt und wird vom Autor auf einer laufenden mailcow-Installation eingesetzt.
+Dieses Tool wurde mit Unterstützung von KI-Assistenten erstellt und wird vom Autor auf einer laufenden mailcow-Installation eingesetzt.
 
 ## Lizenz
 
