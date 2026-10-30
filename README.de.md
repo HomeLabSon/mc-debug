@@ -23,7 +23,7 @@ Das mailcow-Verzeichnis ist standardmäßig `/opt/mailcow-dockerized`. Abweichen
     mc-debug sync                       Status aller IMAP-Sync-Jobs (auf min_ago und running achten)
     mc-debug syncreport <job-id>        Kurzreport des letzten Laufs eines Jobs
     mc-debug runner                     läuft gerade ein imapsync? Ist das Lock gesetzt?
-    mc-debug box <user@domain>          Mailanzahl je Ordner
+    mc-debug box [user@domain]          Mailanzahl je Benutzer, oder je Ordner für einen Benutzer
     mc-debug find <user@domain> <text>  Mails per Betreff-Text in allen Ordnern suchen
     mc-debug trace <text> [zeitraum]    Postfix/Rspamd/Dovecot-Logs durchsuchen (30m, 3h, 2d; Standard 3h)
     mc-debug errors [zeitraum] [all]    Postfix/Dovecot-Probleme nach Meldung gruppiert, Scanner-Rauschen ausgeblendet (Standard 24h)

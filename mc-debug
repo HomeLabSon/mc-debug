@@ -20,7 +20,7 @@ mc-debug <command>
   sync                      status of all IMAP sync jobs (stuck job? see min_ago/running)
   syncreport <job-id>       short report of the last run of one sync job
   runner                    is imapsync running right now? is the lock present?
-  box <user@domain>         message count per folder
+  box [user@domain]         message count per user, or per folder for one user
   find <user@domain> <text> find mails by subject text in all folders
   trace <text> [period]     search postfix/rspamd/dovecot logs (period e.g. 30m, 3h, 2d; default 3h)
   errors [period] [all]     postfix/dovecot problems grouped by message, scanner noise hidden (default 24h)
@@ -42,8 +42,14 @@ case "${1:-}" in
     docker compose exec -T dovecot-mailcow sh -c \
       'date; ps -eo pid,etime,time,args | grep "[i]mapsync --tmpdir" | cut -c1-110; ls -l /tmp/imapsync_busy.lock 2>&1' ;;
   box)
-    [ -n "${2:-}" ] || die "usage: mc-debug box <user@domain>"
-    dove mailbox status -u "$2" messages '*' ;;
+    if [ -z "${2:-}" ]; then
+      sql -N -B -e "select username from mailbox order by username" | while read -r u; do
+        n=$(dove mailbox status -u "$u" messages '*' </dev/null 2>/dev/null | awk -F'messages=' '{s+=$2} END{print s+0}')
+        printf '%8s  %s\n' "$n" "$u"
+      done | sort -rn | awk '{t+=$1; print} END{printf "%8d  TOTAL\n", t}'
+    else
+      dove mailbox status -u "$2" messages '*'
+    fi ;;
   find)
     [ -n "${3:-}" ] || die "usage: mc-debug find <user@domain> <subject text>"
     dove fetch -u "$2" "mailbox date.saved" all subject "$3" ;;

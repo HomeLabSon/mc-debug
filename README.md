@@ -22,7 +22,7 @@ The mailcow directory defaults to `/opt/mailcow-dockerized`. Override with `MAIL
     mc-debug sync                       status of all IMAP sync jobs (look at min_ago and running)
     mc-debug syncreport <job-id>        short report of the last run of one job
     mc-debug runner                     is imapsync running right now? is the lock present?
-    mc-debug box <user@domain>          message count per folder
+    mc-debug box [user@domain]          message count per user, or per folder for one user
     mc-debug find <user@domain> <text>  find mails by subject text in all folders
     mc-debug trace <text> [period]      search postfix/rspamd/dovecot logs (30m, 3h, 2d; default 3h)
     mc-debug errors [period] [all]      postfix/dovecot problems grouped by message, scanner noise hidden (default 24h)
