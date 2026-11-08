@@ -10,7 +10,7 @@ hängt, damit man sich die langen Einzeiler nicht merken muss. Er ändert nichts
 
 - Ausführung auf dem mailcow-Host als root oder als Benutzer mit Docker-Zugriff
 - Docker Compose v2
-- Auswertung der imapsync-Reports getestet mit imapsync 2.178 (in mailcow enthalten); getestete mailcow-Version: 2026-10 (sync und box auch mit 2026-11 geprüft)
+- Auswertung der imapsync-Reports getestet mit imapsync 2.178 und 2.314 (in mailcow enthalten); getestete mailcow-Versionen: 2026-10 und 2026-11
 
 ## Installation
 

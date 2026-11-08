@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # mc-debug - read-only troubleshooting helper for mailcow-dockerized
 # Needs: root or docker access on the mailcow host, Docker Compose v2.
-# Parsing of imapsync reports tested with imapsync 2.178 (bundled with mailcow).
+# Parsing of imapsync reports tested with imapsync 2.178 and 2.314 (bundled with mailcow).
 set -u
 MAILCOW_DIR="${MAILCOW_DIR:-/opt/mailcow-dockerized}"
 
