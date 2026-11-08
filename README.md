@@ -9,7 +9,7 @@ so you don't have to remember the long one-liners. It changes nothing on your sy
 
 - Run on the mailcow host as root or a user with Docker access
 - Docker Compose v2
-- imapsync report parsing tested with imapsync 2.178 (bundled with mailcow); mailcow version tested: Version 2026-10
+- imapsync report parsing tested with imapsync 2.178 (bundled with mailcow); mailcow version tested: 2026-10 (sync and box also checked on 2026-11)
 
 ## Install
 
