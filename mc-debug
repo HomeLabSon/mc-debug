@@ -89,7 +89,14 @@ for b in re.split(r"\n\s*\n", sys.stdin.read()):
     p=$(norm_period "${2:-24h}") || exit 1; t=$(mktemp); trap 'rm -f "$t"' EXIT
     docker compose logs --no-color --since "$p" postfix-mailcow dovecot-mailcow rspamd-mailcow >"$t" 2>/dev/null
     echo "== mail statistics, last $p =="
-    printf 'received (queued) : %s\n' "$(grep -c 'postfix/qmgr.*: from=<.*size=' "$t")"
+    tot=$(grep -c 'postfix/qmgr.*: from=<.*size=' "$t")
+    doms=$(sql -N -B -e "select domain from domain union select alias_domain from alias_domain" 2>/dev/null | sed 's/\./\\./g' | paste -sd'|')
+    if [ -n "$doms" ]; then
+      loc=$(grep 'postfix/qmgr.*: from=<.*size=' "$t" | grep -cE "from=<[^>]*@($doms)>")
+      printf 'queued            : %s (own domains: %s, external: %s)\n' "$tot" "$loc" "$((tot-loc))"
+    else
+      printf 'queued            : %s\n' "$tot"
+    fi
     printf 'delivered local   : %s\n' "$(grep -c 'postfix/lmtp.*status=sent' "$t")"
     printf 'sent outbound     : %s\n' "$(grep -c 'postfix/smtp\[.*status=sent' "$t")"
     printf 'deferred          : %s\n' "$(grep -c 'status=deferred' "$t")"
