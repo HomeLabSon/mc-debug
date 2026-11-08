@@ -38,7 +38,7 @@ case "${1:-}" in
     sql -e "select id, user2 as target, user1 as source, last_run,
             timestampdiff(minute, last_run, now()) as min_ago,
             is_running as running, exit_status
-            from imapsync order by last_run" ;;
+            from imapsync order by last_run" | { command -v column >/dev/null && column -t -s "$(printf "\t")" || cat; } ;;
   syncreport)
     [[ "${2:-}" =~ ^[0-9]+$ ]] || die "usage: mc-debug syncreport <job-id>"
     sql -N -B -e "select returned_text from imapsync where id=$2" | sed 's/\\n/\n/g' \
