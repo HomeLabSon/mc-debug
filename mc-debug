@@ -24,7 +24,7 @@ usage() {
 mc-debug <command>
   sync                      status of all IMAP sync jobs (stuck job? see min_ago/running)
   syncreport <job-id>       short report of the last run of one sync job
-  runner                    is imapsync running right now? is the lock present?
+  runner                    running imapsync processes and the parallel limit
   box [user@domain]         message count per user, or per folder for one user
   find <user@domain> <text> find mails by subject text in all folders
   trace <text> [period]     search postfix/rspamd/dovecot logs (period e.g. 30m, 3h, 2d; default 3h)
@@ -44,8 +44,9 @@ case "${1:-}" in
     sql -N -B -e "select returned_text from imapsync where id=$2" | sed 's/\\n/\n/g' \
       | grep -E 'Transfer (started|ended) on|Host1: folder .* has [0-9]+ messages in total|Messages (transferred|deleted on host1)|Detected' ;;
   runner)
-    docker compose exec -T dovecot-mailcow sh -c \
-      'date; ps -eo pid,etime,time,args | grep "[i]mapsync --tmpdir" | cut -c1-110; ls -l /tmp/imapsync_busy.lock 2>&1' ;;
+    docker compose exec -T dovecot-mailcow sh -c 'date; ps -eo pid,etime,time,args | grep "[i]mapsync " | cut -c1-110'
+    printf 'max_parallel: '
+    sql -N -B -e "select value from imapsync_settings where name='max_parallel'" 2>/dev/null || echo "n/a (older mailcow: one job at a time)" ;;
   box)
     if [ -z "${2:-}" ]; then
       sql -N -B -e "select username from mailbox order by username" | while read -r u; do
