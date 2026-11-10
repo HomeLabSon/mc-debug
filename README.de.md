@@ -29,6 +29,8 @@ Das mailcow-Verzeichnis ist standardmäßig `/opt/mailcow-dockerized`. Abweichen
     mc-debug errors [zeitraum] [all]    Postfix/Dovecot-Probleme nach Meldung gruppiert, Scanner-Rauschen ausgeblendet (Standard 24h)
     mc-debug stats [zeitraum]           Kurzstatistik: Zähler, Rspamd-Aktionen, Top-Domains (Standard 24h)
     mc-debug spam [zeitraum]            Rspamd-Aktionen, Postfix-Ablehnungen, häufigste markierte Absender, Quarantäne (Standard 24h)
+    mc-debug findspam <text> [zeitraum] markierte/abgelehnte Mails zu Absender, Empfänger oder IP, plus Suche in den Junk-Ordnern
+    mc-debug mailtrace <message-id> [zeitraum]  wohin ging eine Mail? Rspamd-Entscheidungen, Postfix-Zustellung, Dovecot-Ablage (Standard 72h)
 
 ## Beispiel: Sync-Jobs laufen nicht mehr durch
 

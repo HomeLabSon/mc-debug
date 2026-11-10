@@ -31,6 +31,8 @@ mc-debug <command>
   errors [period] [all]     postfix/dovecot problems grouped by message, scanner noise hidden (default 24h)
   stats [period]            short mail statistics: counts, rspamd actions, top domains (default 24h)
   spam [period]             rspamd actions, postfix rejects, top flagged senders, quarantine count (default 24h)
+  findspam <text> [period]  flagged/rejected mails matching sender, recipient or IP, plus junk folder search
+  mailtrace <message-id> [period]  where did a mail go? rspamd decisions, postfix delivery, dovecot filing (default 72h)
 USAGE
 }
 
@@ -98,6 +100,72 @@ for b in re.split(r"\n\s*\n", sys.stdin.read()):
     echo "-- top senders of flagged mails (rspamd action other than 'no action')"
     grep 'rspamd_task_write_log' "$t" | grep -v '(no action)' | grep -o ' from: <[^>]*>' | sed 's/ from: //' | sort | uniq -c | sort -rn | head -5
     printf 'quarantine entries (all time): %s\n' "$(sql -N -B -e 'select count(*) from quarantine' 2>/dev/null || echo n/a)" ;;
+  findspam)
+    [ -n "${2:-}" ] || die "usage: mc-debug findspam <text> [period]  (text: part of sender, recipient, IP or subject)"
+    command -v python3 >/dev/null || die "python3 not found"
+    p=$(norm_period "${3:-24h}") || exit 1
+    echo "== rspamd: flagged mails matching '$2', last $p =="
+    docker compose logs --no-color --since "$p" rspamd-mailcow 2>/dev/null | grep 'rspamd_task_write_log' | grep -F -i -- "$2" | python3 -c '
+import re, sys
+for l in sys.stdin:
+    m = re.search(r"(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) .*? from: <([^>]*)>, \(default: [TF] \(([a-z ]+)\): \[(-?[\d.]+)/", l)
+    if not m:
+        continue
+    t, frm, act, sc = m.groups()
+    if act == "no action":
+        continue
+    rc = re.search(r"rcpts: <([^>]*)>", l)
+    syms = re.findall(r"([A-Z][A-Z0-9_]+)\((-?[\d.]+)\)", l.split("]), len")[0])
+    syms = sorted(syms, key=lambda x: -float(x[1]))[:3]
+    print("%s  %-11s %6s  %s -> %s  %s" % (t, act, sc, frm.split("@")[-1][:45], rc.group(1) if rc else "?", " ".join("%s(%s)" % s for s in syms)))
+'
+    echo "== postfix: rejected at the door, matching '$2' =="
+    docker compose logs --no-color --since "$p" postfix-mailcow 2>/dev/null | grep 'NOQUEUE: reject' | grep -F -i -- "$2" | sed -E 's/^[a-z0-9-]+ +\| //' | cut -c1-200 | head -10
+    echo "== junk folders: sender or subject matching '$2' =="
+    sql -N -B -e "select username from mailbox order by username" | while read -r u; do
+      out=$(dove fetch -u "$u" "mailbox date.received hdr.from hdr.subject" mailbox Junk OR SUBJECT "$2" FROM "$2" </dev/null 2>/dev/null | python3 -c '
+import re, sys
+from email.header import decode_header, make_header
+def dec(v):
+    try:
+        return str(make_header(decode_header(v)))
+    except Exception:
+        return v
+for b in re.split(r"\n\s*\n", sys.stdin.read()):
+    d = {}
+    for l in b.splitlines():
+        k, _, v = l.partition(": ")
+        d[k] = v
+    if d:
+        print("  %s  %-40s %s" % (d.get("date.received", ""), dec(d.get("hdr.from", ""))[:40], dec(d.get("hdr.subject", ""))[:70]))
+')
+      if [ -n "$out" ]; then echo "$u"; echo "$out" | head -30; fi
+    done ;;
+  mailtrace)
+    [ -n "${2:-}" ] || die "usage: mc-debug mailtrace <message-id or part of it> [period]"
+    command -v python3 >/dev/null || die "python3 not found"
+    p=$(norm_period "${3:-72h}") || exit 1
+    t=$(mktemp); trap 'rm -f "$t"' EXIT
+    docker compose logs --no-color --since "$p" rspamd-mailcow postfix-mailcow dovecot-mailcow >"$t" 2>/dev/null
+    key="${2#<}"; key="${key%>}"
+    qids=$(grep -F -- "$key" "$t" | grep -oE '(qid: <|cleanup\[[0-9]+\]: )[0-9A-F]{10,12}' | grep -oE '[0-9A-F]{10,12}$' | sort -u | paste -sd'|')
+    echo "== rspamd decisions for '$key' =="
+    grep 'rspamd_task_write_log' "$t" | grep -F -- "$key" | python3 -c '
+import re, sys
+for l in sys.stdin:
+    m = re.search(r"(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) .*? ip: ([^,]*), from: <([^>]*)>, \(default: [TF] \(([a-z ]+)\): \[(-?[\d.]+)/", l)
+    if not m:
+        continue
+    t, ip, frm, act, sc = m.groups()
+    rc = re.search(r"rcpts: <([^>]*)>", l)
+    syms = re.findall(r"([A-Z][A-Z0-9_]+)\((-?[\d.]+)\)", l.split("]), len")[0])
+    syms = sorted(syms, key=lambda x: -float(x[1]))[:3]
+    print("%s  %-11s %6s  ip %s -> %s  %s" % (t, act, sc, ip, rc.group(1) if rc else "?", " ".join("%s(%s)" % s for s in syms)))
+'
+    echo "== postfix (queue ids: ${qids:-none}) =="
+    if [ -n "$qids" ]; then grep -E "postfix/.*: ($qids): " "$t" | sed -E 's/^[a-z0-9-]+ +\| //' | grep -E 'client=|from=<|to=<' | cut -c1-200; fi
+    echo "== dovecot =="
+    grep -F -- "$key" "$t" | grep 'dovecot' | sed -E 's/^[a-z0-9-]+ +\| //' | cut -c1-220 ;;
   stats)
     p=$(norm_period "${2:-24h}") || exit 1; t=$(mktemp); trap 'rm -f "$t"' EXIT
     docker compose logs --no-color --since "$p" postfix-mailcow dovecot-mailcow rspamd-mailcow >"$t" 2>/dev/null
