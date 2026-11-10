@@ -30,6 +30,7 @@ The mailcow directory defaults to `/opt/mailcow-dockerized`. Override with `MAIL
     mc-debug spam [period]              rspamd actions, postfix rejects, top flagged senders, quarantine count (default 24h)
     mc-debug findspam <text> [period]   flagged/rejected mails matching sender, recipient or IP, plus junk folder search
     mc-debug mailtrace <message-id> [period]  where did a mail go? rspamd decisions, postfix delivery, dovecot filing (default 72h)
+    mc-debug show <user> <message-id|subject> [full]  read one mail: key headers, text with full links, attachment names (read-only)
 
 ## Example: sync jobs stop running
 
@@ -46,6 +47,7 @@ compared, copied back and deleted again on every run.
 
 ## Notes
 
+- `show` prints the content of a user's mail. Use it only where you are authorised to access that mailbox.
 - Table and column names (`imapsync`, `returned_text`, ...) come from mailcow's database and may change between versions.
 - `find` matches the decoded subject via `doveadm`; `trace` only finds what the services actually log
   (queue IDs, addresses, message IDs), usually not subjects.

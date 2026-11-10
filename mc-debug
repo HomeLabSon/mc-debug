@@ -33,6 +33,7 @@ mc-debug <command>
   spam [period]             rspamd actions, postfix rejects, top flagged senders, quarantine count (default 24h)
   findspam <text> [period]  flagged/rejected mails matching sender, recipient or IP, plus junk folder search
   mailtrace <message-id> [period]  where did a mail go? rspamd decisions, postfix delivery, dovecot filing (default 72h)
+  show <user> <msg-id|subject> [full]  read one mail: key headers, text part, attachment names (read-only)
 USAGE
 }
 
@@ -168,6 +169,54 @@ for l in sys.stdin:
     if [ -n "$qids" ]; then grep -E "postfix/.*: ($qids): " "$t" | sed -E 's/^[a-z0-9-]+ +\| //' | grep -E 'client=|from=<|to=<' | cut -c1-200; fi
     echo "== dovecot =="
     grep -F -- "$key" "$t" | grep 'dovecot' | sed -E 's/^[a-z0-9-]+ +\| //' | cut -c1-220 ;;
+  show)
+    [ -n "${3:-}" ] || die "usage: mc-debug show <user@domain> <message-id or subject text> [full]"
+    command -v python3 >/dev/null || die "python3 not found"
+    q="${3#<}"; q="${q%>}"
+    hits=$(dove search -u "$2" HEADER Message-ID "$q" </dev/null 2>/dev/null)
+    [ -n "$hits" ] || hits=$(dove search -u "$2" SUBJECT "$q" </dev/null 2>/dev/null)
+    n=$(printf '%s\n' "$hits" | grep -c .)
+    [ "$n" -gt 0 ] || die "no mail found for '$q' in $2"
+    first=$(printf '%s\n' "$hits" | head -1); g="${first% *}"; id="${first#* }"
+    echo "== $n match(es), showing the first: $(dove fetch -u "$2" mailbox mailbox-guid "$g" uid "$id" </dev/null) uid $id =="
+    dove fetch -u "$2" text mailbox-guid "$g" uid "$id" </dev/null | sed '1s/^text: //' | python3 -c '
+import re, sys, email, signal, html
+from email import policy
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+full = len(sys.argv) > 1 and sys.argv[1] == "full"
+def clean(s):
+    return re.sub(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]", "", str(s))
+msg = email.message_from_bytes(sys.stdin.buffer.read(), policy=policy.default)
+keep = ("date", "from", "to", "cc", "reply-to", "return-path", "subject", "message-id", "authentication-results", "received-spf")
+print("--- headers")
+n_rec = 0
+for k, v in msg.items():
+    kl = k.lower()
+    if full or kl in keep or kl.startswith("x-spam") or kl.startswith("x-rspamd"):
+        print("%s: %s" % (k, re.sub(r"\s+", " ", clean(v))[:300]))
+    elif kl == "received" and n_rec < 3:
+        n_rec += 1
+        print("Received: %s" % re.sub(r"\s+", " ", clean(v))[:200])
+print("--- body" + ("" if full else " (first 40 lines, add full for all)"))
+body = msg.get_body(preferencelist=("plain", "html"))
+if body is None:
+    print("(no text part)")
+else:
+    t = body.get_content()
+    if body.get_content_type() == "text/html":
+        t = re.sub(r"(?is)<a\s[^>]*?href=.([^\x22\x27>\s]+)[^>]*>(.*?)</a>", lambda m: m.group(2) + " <" + html.unescape(m.group(1)) + ">", t)
+        t = re.sub(r"(?is)<(script|style).*?</\1>", " ", t)
+        t = re.sub(r"<[^>]+>", " ", t)
+    lines = [re.sub(r"[ \t]+", " ", clean(l)).strip() for l in t.splitlines()]
+    lines = [l for l in lines if l]
+    for l in (lines if full else lines[:40]):
+        print(l)
+atts = list(msg.iter_attachments())
+if atts:
+    print("--- attachments")
+    for p in atts:
+        print("%s  %s  %d bytes" % (clean(p.get_filename() or "(no name)"), p.get_content_type(), len(p.get_payload(decode=True) or b"")))
+' "${4:-}" ;;
   stats)
     p=$(norm_period "${2:-24h}") || exit 1; t=$(mktemp); trap 'rm -f "$t"' EXIT
     docker compose logs --no-color --since "$p" postfix-mailcow dovecot-mailcow rspamd-mailcow >"$t" 2>/dev/null

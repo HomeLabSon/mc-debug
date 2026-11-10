@@ -31,6 +31,7 @@ Das mailcow-Verzeichnis ist standardmäßig `/opt/mailcow-dockerized`. Abweichen
     mc-debug spam [zeitraum]            Rspamd-Aktionen, Postfix-Ablehnungen, häufigste markierte Absender, Quarantäne (Standard 24h)
     mc-debug findspam <text> [zeitraum] markierte/abgelehnte Mails zu Absender, Empfänger oder IP, plus Suche in den Junk-Ordnern
     mc-debug mailtrace <message-id> [zeitraum]  wohin ging eine Mail? Rspamd-Entscheidungen, Postfix-Zustellung, Dovecot-Ablage (Standard 72h)
+    mc-debug show <user> <message-id|subject> [full]  eine Mail lesen: wichtige Header, Text mit vollständigen Links, Anhangsnamen (nur lesend)
 
 ## Beispiel: Sync-Jobs laufen nicht mehr durch
 
@@ -47,6 +48,7 @@ Lauf verglichen, zurückkopiert und erneut gelöscht.
 
 ## Hinweise
 
+- `show` gibt den Inhalt einer Mail aus. Nur verwenden, wenn du auf dieses Postfach zugreifen darfst.
 - Tabellen- und Spaltennamen (`imapsync`, `returned_text`, ...) stammen aus der mailcow-Datenbank und können sich zwischen Versionen ändern.
 - `find` sucht über den dekodierten Betreff per `doveadm`; `trace` findet nur, was die Dienste tatsächlich loggen
   (Queue-IDs, Adressen, Message-IDs), meist keine Betreffs.
