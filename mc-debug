@@ -121,9 +121,11 @@ for l in sys.stdin:
 '
     echo "== postfix: rejected at the door, matching '$2' =="
     docker compose logs --no-color --since "$p" postfix-mailcow 2>/dev/null | grep 'NOQUEUE: reject' | grep -F -i -- "$2" | sed -E 's/^[a-z0-9-]+ +\| //' | cut -c1-200 | head -10
-    echo "== junk folders: sender or subject matching '$2' =="
+    case "${p: -1}" in s) unit=seconds;; m) unit=minutes;; *) unit=hours;; esac
+    sd=$(date -d "-${p%?} $unit" +%Y-%m-%d 2>/dev/null || echo 1970-01-01)
+    echo "== junk folders: sender or subject matching '$2', received since $sd =="
     sql -N -B -e "select username from mailbox order by username" | while read -r u; do
-      out=$(dove fetch -u "$u" "mailbox date.received hdr.from hdr.subject" mailbox Junk OR SUBJECT "$2" FROM "$2" </dev/null 2>/dev/null | python3 -c '
+      out=$(dove fetch -u "$u" "mailbox date.received hdr.from hdr.subject" mailbox Junk since "$sd" \( SUBJECT "$2" OR FROM "$2" \) </dev/null | python3 -c '
 import re, sys
 from email.header import decode_header, make_header
 def dec(v):
@@ -139,7 +141,7 @@ for b in re.split(r"\n\s*\n", sys.stdin.read()):
     if d:
         print("  %s  %-40s %s" % (d.get("date.received", ""), dec(d.get("hdr.from", ""))[:40], dec(d.get("hdr.subject", ""))[:70]))
 ')
-      if [ -n "$out" ]; then echo "$u"; echo "$out" | head -30; fi
+      if [ -n "$out" ]; then echo "$u"; echo "$out" | sort -r | head -15; fi
     done ;;
   mailtrace)
     [ -n "${2:-}" ] || die "usage: mc-debug mailtrace <message-id or part of it> [period]"
