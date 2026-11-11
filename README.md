@@ -24,13 +24,15 @@ The mailcow directory defaults to `/opt/mailcow-dockerized`. Override with `MAIL
     mc-debug runner                     running imapsync processes and the parallel limit
     mc-debug box [user@domain]          message count per user, or per folder for one user
     mc-debug find <user@domain> <text>  find mails by subject text in all folders
+    mc-debug last <user@domain> [period] [count]  latest received mails of a user, newest first (default 2d, 20)
     mc-debug trace <text> [period]      search postfix/rspamd/dovecot logs (30m, 3h, 2d; default 3h)
     mc-debug errors [period] [all]      postfix/dovecot problems grouped by message, scanner noise hidden (default 24h)
     mc-debug stats [period]             short mail statistics: counts, rspamd actions, top domains (default 24h)
     mc-debug spam [period]              rspamd actions, postfix rejects, top flagged senders, quarantine count (default 24h)
     mc-debug findspam <text> [period]   flagged/rejected mails matching sender, recipient or IP, plus junk folder search
+    mc-debug last <user@domain> [period] [count]  latest received mails of a user, newest first (default 2d, 20)
     mc-debug mailtrace <message-id> [period]  where did a mail go? rspamd decisions, postfix delivery, dovecot filing (default 72h)
-    mc-debug show <user> <message-id|subject> [full]  read one mail: key headers, text with full links, attachment names (read-only)
+    mc-debug show <user> <message-id|subject> [full|links]  read one mail: key headers, text with full links, attachment names (read-only)
 
 ## Example: sync jobs stop running
 

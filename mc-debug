@@ -33,7 +33,8 @@ mc-debug <command>
   spam [period]             rspamd actions, postfix rejects, top flagged senders, quarantine count (default 24h)
   findspam <text> [period]  flagged/rejected mails matching sender, recipient or IP, plus junk folder search
   mailtrace <message-id> [period]  where did a mail go? rspamd decisions, postfix delivery, dovecot filing (default 72h)
-  show <user> <msg-id|subject> [full]  read one mail: key headers, text part, attachment names (read-only)
+  show <user> <msg-id|subject> [full|links]  read one mail: key headers, text part, attachment names (read-only)
+  last <user> [period] [count]  latest received mails of a user (all folders except Sent/Drafts), newest first
 USAGE
 }
 
@@ -170,7 +171,7 @@ for l in sys.stdin:
     echo "== dovecot =="
     grep -F -- "$key" "$t" | grep 'dovecot' | sed -E 's/^[a-z0-9-]+ +\| //' | cut -c1-220 ;;
   show)
-    [ -n "${3:-}" ] || die "usage: mc-debug show <user@domain> <message-id or subject text> [full]"
+    [ -n "${3:-}" ] || die "usage: mc-debug show <user@domain> <message-id or subject text> [full|links]"
     command -v python3 >/dev/null || die "python3 not found"
     q="${3#<}"; q="${q%>}"
     hits=$(dove search -u "$2" HEADER Message-ID "$q" </dev/null 2>/dev/null)
@@ -183,7 +184,8 @@ for l in sys.stdin:
 import re, sys, email, signal, html
 from email import policy
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-full = len(sys.argv) > 1 and sys.argv[1] == "full"
+mode = sys.argv[1] if len(sys.argv) > 1 else ""
+full = mode == "full"
 def clean(s):
     return re.sub(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]", "", str(s))
 msg = email.message_from_bytes(sys.stdin.buffer.read(), policy=policy.default)
@@ -197,6 +199,24 @@ for k, v in msg.items():
     elif kl == "received" and n_rec < 3:
         n_rec += 1
         print("Received: %s" % re.sub(r"\s+", " ", clean(v))[:200])
+if mode == "links":
+    print("--- links (html anchors with text, then plain-text urls)")
+    seen = set()
+    for part in msg.walk():
+        ct = part.get_content_type()
+        if ct == "text/html":
+            for m in re.finditer(r"(?is)<a\s[^>]*?href=.([^\x22\x27>\s]+)[^>]*>(.*?)</a>", part.get_content()):
+                url = html.unescape(m.group(1))
+                txt = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", m.group(2)))).strip()
+                if url not in seen:
+                    seen.add(url)
+                    print("%s -> %s" % (txt or "(no text)", url))
+        elif ct == "text/plain":
+            for url in re.findall(r"https?://[^\s<>\x22\x27)\]]+", part.get_content()):
+                if url not in seen:
+                    seen.add(url)
+                    print("(plain) %s" % url)
+    sys.exit(0)
 print("--- body" + ("" if full else " (first 40 lines, add full for all)"))
 body = msg.get_body(preferencelist=("plain", "html"))
 if body is None:
@@ -217,6 +237,35 @@ if atts:
     for p in atts:
         print("%s  %s  %d bytes" % (clean(p.get_filename() or "(no name)"), p.get_content_type(), len(p.get_payload(decode=True) or b"")))
 ' "${4:-}" ;;
+  last)
+    [ -n "${2:-}" ] || die "usage: mc-debug last <user@domain> [period] [count]  (default: 2d, 20)"
+    command -v python3 >/dev/null || die "python3 not found"
+    p=$(norm_period "${3:-2d}") || exit 1
+    case "${p: -1}" in s) unit=seconds;; m) unit=minutes;; *) unit=hours;; esac
+    sd=$(date -d "-${p%?} $unit" +%Y-%m-%d 2>/dev/null || echo 1970-01-01)
+    dove fetch -u "$2" "mailbox date.received hdr.from hdr.subject hdr.message-id" since "$sd" </dev/null | python3 -c '
+import re, sys
+from email.header import decode_header, make_header
+n = int(sys.argv[1])
+def dec(v):
+    try:
+        return re.sub(r"\s+", " ", str(make_header(decode_header(v))))
+    except Exception:
+        return v
+rows = []
+for b in re.split(r"\n\s*\n", sys.stdin.read()):
+    d = {}
+    for l in b.splitlines():
+        k, _, v = l.partition(": ")
+        d[k] = v
+    if d.get("mailbox") in ("Sent", "Drafts") or not d.get("date.received"):
+        continue
+    rows.append(d)
+rows.sort(key=lambda d: d["date.received"], reverse=True)
+for d in rows[:n]:
+    print("%s  %-9s %-32s %-60s %s" % (d["date.received"], d.get("mailbox", "")[:9], dec(d.get("hdr.from", ""))[:32], dec(d.get("hdr.subject", ""))[:60], d.get("hdr.message-id", "")))
+print("(%d mails received since %s, showing %d. Read one with: mc-debug show <user> <message-id>)" % (len(rows), sys.argv[2], min(n, len(rows))))
+' "${4:-20}" "$sd" ;;
   stats)
     p=$(norm_period "${2:-24h}") || exit 1; t=$(mktemp); trap 'rm -f "$t"' EXIT
     docker compose logs --no-color --since "$p" postfix-mailcow dovecot-mailcow rspamd-mailcow >"$t" 2>/dev/null

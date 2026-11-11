@@ -25,13 +25,15 @@ Das mailcow-Verzeichnis ist standardmäßig `/opt/mailcow-dockerized`. Abweichen
     mc-debug runner                     laufende imapsync-Prozesse und das Parallel-Limit
     mc-debug box [user@domain]          Mailanzahl je Benutzer, oder je Ordner für einen Benutzer
     mc-debug find <user@domain> <text>  Mails per Betreff-Text in allen Ordnern suchen
+    mc-debug last <user@domain> [zeitraum] [anzahl]  zuletzt empfangene Mails eines Benutzers, neueste zuerst (Standard 2d, 20)
     mc-debug trace <text> [zeitraum]    Postfix/Rspamd/Dovecot-Logs durchsuchen (30m, 3h, 2d; Standard 3h)
     mc-debug errors [zeitraum] [all]    Postfix/Dovecot-Probleme nach Meldung gruppiert, Scanner-Rauschen ausgeblendet (Standard 24h)
     mc-debug stats [zeitraum]           Kurzstatistik: Zähler, Rspamd-Aktionen, Top-Domains (Standard 24h)
     mc-debug spam [zeitraum]            Rspamd-Aktionen, Postfix-Ablehnungen, häufigste markierte Absender, Quarantäne (Standard 24h)
     mc-debug findspam <text> [zeitraum] markierte/abgelehnte Mails zu Absender, Empfänger oder IP, plus Suche in den Junk-Ordnern
+    mc-debug last <user@domain> [zeitraum] [anzahl]  zuletzt empfangene Mails eines Benutzers, neueste zuerst (Standard 2d, 20)
     mc-debug mailtrace <message-id> [zeitraum]  wohin ging eine Mail? Rspamd-Entscheidungen, Postfix-Zustellung, Dovecot-Ablage (Standard 72h)
-    mc-debug show <user> <message-id|subject> [full]  eine Mail lesen: wichtige Header, Text mit vollständigen Links, Anhangsnamen (nur lesend)
+    mc-debug show <user> <message-id|subject> [full|links]  eine Mail lesen: wichtige Header, Text mit vollständigen Links, Anhangsnamen (nur lesend)
 
 ## Beispiel: Sync-Jobs laufen nicht mehr durch
 
