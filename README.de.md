@@ -47,6 +47,12 @@ In unserem Fall arbeitete der Runner die Jobs strikt nacheinander ab (`max_paral
 Ursache war ein Gmail-Konto, das gelöschte Mails in "Alle Nachrichten" behielt. Dieselben Mails wurden bei jedem
 Lauf verglichen, zurückkopiert und erneut gelöscht.
 
+## Beispiel: Ich finde eine Mail nicht
+
+1. `mc-debug last user@example.com 3d` listet die zuletzt empfangenen Mails eines Benutzers mit Ordner, Absender, Betreff und Message-ID. Junk und Trash sind dabei, dort liegt eine Mail oft.
+2. `mc-debug show user@example.com <message-id>` liest eine davon: wichtige Header (Spam-Bewertung, DKIM/SPF-Ergebnis), den Text und die Namen der Anhänge. Fehlt im Text ein Link, listet `mc-debug show user@example.com <message-id> links` die Links des HTML-Teils auf.
+3. Steht die Mail nicht in der Liste: `mc-debug findspam <absender>` zeigt, ob sie markiert oder abgelehnt wurde, `mc-debug trace <absender> 24h` durchsucht die rohen Logs, und mit einer Message-ID verfolgt `mc-debug mailtrace <message-id>` die Mail durch Rspamd, Postfix und Dovecot.
+
 ## Hinweise
 
 - `show` gibt den Inhalt einer Mail aus. Nur verwenden, wenn du auf dieses Postfach zugreifen darfst.

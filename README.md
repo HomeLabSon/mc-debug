@@ -46,6 +46,12 @@ In our case the runner processed jobs strictly one after another (`max_parallel 
 The cause was a Gmail account that kept messages in "All Mail" after deletion, so the same mails were
 compared, copied back and deleted again on every run.
 
+## Example: I can't find a mail
+
+1. `mc-debug last user@example.com 3d` lists the latest received mails of a user with folder, sender, subject and Message-ID. Junk and Trash are included, a mail often sits there.
+2. `mc-debug show user@example.com <message-id>` reads one of them: key headers (spam verdict, DKIM/SPF results), the text and attachment names. If a link is missing in the text, `mc-debug show user@example.com <message-id> links` lists the links of the HTML part.
+3. If the mail is not in the list: `mc-debug findspam <sender>` shows whether it was flagged or rejected, `mc-debug trace <sender> 24h` searches the raw logs, and with a Message-ID `mc-debug mailtrace <message-id>` follows the mail through Rspamd, Postfix and Dovecot.
+
 ## Notes
 
 - `show` prints the content of a user's mail. Use it only where you are authorised to access that mailbox.
