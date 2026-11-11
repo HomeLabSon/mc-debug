@@ -31,7 +31,6 @@ Das mailcow-Verzeichnis ist standardmäßig `/opt/mailcow-dockerized`. Abweichen
     mc-debug stats [zeitraum]           Kurzstatistik: Zähler, Rspamd-Aktionen, Top-Domains (Standard 24h)
     mc-debug spam [zeitraum]            Rspamd-Aktionen, Postfix-Ablehnungen, häufigste markierte Absender, Quarantäne (Standard 24h)
     mc-debug findspam <text> [zeitraum] markierte/abgelehnte Mails zu Absender, Empfänger oder IP, plus Suche in den Junk-Ordnern
-    mc-debug last <user@domain> [zeitraum] [anzahl]  zuletzt empfangene Mails eines Benutzers, neueste zuerst (Standard 2d, 20)
     mc-debug mailtrace <message-id> [zeitraum]  wohin ging eine Mail? Rspamd-Entscheidungen, Postfix-Zustellung, Dovecot-Ablage (Standard 72h)
     mc-debug show <user> <message-id|subject> [full|links]  eine Mail lesen: wichtige Header, Text mit vollständigen Links, Anhangsnamen (nur lesend)
 

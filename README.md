@@ -30,7 +30,6 @@ The mailcow directory defaults to `/opt/mailcow-dockerized`. Override with `MAIL
     mc-debug stats [period]             short mail statistics: counts, rspamd actions, top domains (default 24h)
     mc-debug spam [period]              rspamd actions, postfix rejects, top flagged senders, quarantine count (default 24h)
     mc-debug findspam <text> [period]   flagged/rejected mails matching sender, recipient or IP, plus junk folder search
-    mc-debug last <user@domain> [period] [count]  latest received mails of a user, newest first (default 2d, 20)
     mc-debug mailtrace <message-id> [period]  where did a mail go? rspamd decisions, postfix delivery, dovecot filing (default 72h)
     mc-debug show <user> <message-id|subject> [full|links]  read one mail: key headers, text with full links, attachment names (read-only)
 
